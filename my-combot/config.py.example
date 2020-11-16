@@ -1,0 +1,12 @@
+TOKEN = '12345:abecdfgbot'
+
+WEBHOOK_HOST = 'example.com'  # Domain name or IP addres which your bot is located.
+WEBHOOK_PORT = 443  # Telegram Bot API allows only for usage next ports: 443, 80, 88 or 8443
+WEBHOOK_URL_PATH = '/webhook'  # Part of URL
+
+WEBAPP_HOST = 'localhost'
+WEBAPP_PORT = 3001
+
+DB_URL = 'postgres://root:toor@d0.0.0.0:5432/dbname'
+
+#DB_TYPE://USERNAME:PASSWORD@HOST:PORT/DB_NAME

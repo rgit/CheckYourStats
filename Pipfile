@@ -1,0 +1,19 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+aiogram = "*"
+python-dotenv = "*"
+tables = "*"
+pony = "*"
+matplotlib = "*"
+seaborn = "*"
+dateparser = "*"
+pandas = "*"
+
+[dev-packages]
+
+[requires]
+python_version = "3.8"

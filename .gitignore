@@ -131,6 +131,9 @@ dmypy.json
 
 #IDE
 .vscode
+.idea
 
-#Config
-config.py
+## CheckYourStats Specific Ignores
+
+# Main database
+**/database.sqlite

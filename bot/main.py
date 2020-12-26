@@ -1,9 +1,9 @@
 import logging
+from io import BytesIO
 
 import dateparser
 from datetime import datetime
 import time
-from tempfile import TemporaryFile
 
 import pandas
 import pytz
@@ -11,9 +11,12 @@ import seaborn
 from aiogram import Bot, Dispatcher, executor, types
 
 import dotenv
-from aiogram.types import InputFile, ChatMember
+from aiogram.types import InputFile
 from pony.orm import db_session, select
 import matplotlib.pyplot as plt
+
+import matplotlib.style as mplstyle
+mplstyle.use('fast')
 
 from bot.db.db import ChatMessage
 
@@ -83,13 +86,13 @@ async def plot(message: types.Message):
         fig.autofmt_xdate()
         plotting_t2 = time.process_time()
 
-        with TemporaryFile() as tmp:
-            image_t1 = time.process_time()
-            fig.savefig(tmp, dpi=700)
-            tmp.seek(0)
-            await message.reply_photo(InputFile(tmp), caption=f"""plotting T={round((plotting_t2 - plotting_t1) * 1000, 2)}ms
+        tmp = BytesIO()
+        image_t1 = time.process_time()
+        fig.savefig(tmp)
+        tmp.seek(0)
+        await message.reply_photo(InputFile(tmp), caption=f"""plotting T={round((plotting_t2 - plotting_t1) * 1000, 2)}ms
 image T={round((time.process_time() - image_t1) * 1000, 2)}ms
-Все даты в UTC""")
+Все даты в UTC""",)
 
 
 @dp.message_handler()

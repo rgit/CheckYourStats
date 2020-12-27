@@ -106,7 +106,7 @@ async def message_logger(message: types.Message):
             id=str(message.message_id),
             chat_id=str(message.chat.id),
             user_id=str(message.from_user.id),
-            datetime=datetime.utcnow().replace(tzinfo=pytz.UTC),
+            datetime=message.date,
         )
 
 

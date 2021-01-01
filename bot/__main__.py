@@ -10,6 +10,7 @@ import pytz
 import seaborn
 from aiogram import Bot, Dispatcher, executor, types
 
+import gc
 import dotenv
 from aiogram.types import InputFile
 from pony.orm import db_session, select
@@ -89,10 +90,14 @@ async def plot(message: types.Message):
         tmp = BytesIO()
         image_t1 = time.process_time()
         fig.savefig(tmp)
+        fig.clear()
+        plt.close(fig)
+        df = pandas.DataFrame()
         tmp.seek(0)
         await message.reply_photo(InputFile(tmp), caption=f"""plotting T={round((plotting_t2 - plotting_t1) * 1000, 2)}ms
 image T={round((time.process_time() - image_t1) * 1000, 2)}ms
 Все даты в UTC""",)
+        gc.collect()
 
 
 @dp.message_handler()

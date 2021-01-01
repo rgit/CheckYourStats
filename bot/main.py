@@ -1,4 +1,4 @@
-from aiogram.utils.exceptions import MessageToDeleteNotFound, MessageCantBeDeleted, NotEnoughRightsToRestrict
+from aiogram.utils.exceptions import MessageToDeleteNotFound, MessageCantBeDeleted, NotEnoughRightsToRestrict, BadRequest
 from aiogram.dispatcher.handler import SkipHandler, CancelHandler
 from aiogram import Bot, Dispatcher, executor, types
 from aiogram.types import InputFile
@@ -90,7 +90,7 @@ async def message_handler(message: types.Message):
                 msg = await message.answer(f"[{message.from_user.full_name}](tg://user?id={message.from_user.id}) был "
                                            "заблокирован на 5 минут из-за попытки спама.", parse_mode="Markdown")
                 await remove_message(msg, 15)
-            except NotEnoughRightsToRestrict:
+            except (NotEnoughRightsToRestrict, BadRequest):
                     await message.answer("Прекрати спамить, долбаеб.")
             raise CancelHandler
         if message.text in ["/plot", "/cumplot"]:
@@ -108,7 +108,6 @@ async def message_handler(message: types.Message):
 @dp.message_handler(commands=["plot", "cumplot"])
 @db_session
 async def plot_handler(message: types.Message):
-    await bot.delete_message(message.chat.id, message.message_id)
     figure = plt.figure()
     try:
         rule = message.text.split()[1]
@@ -144,6 +143,7 @@ async def plot_handler(message: types.Message):
                               caption=f"Plotting T=`{round((plotting_t2 - plotting_t1) * 1000, 2)}ms`\n"
                                       f"Image T=`{round((time.process_time() - image_t1) * 1000, 2)}ms`",
                               parse_mode="Markdown")
+    await bot.delete_message(message.chat.id, message.message_id)
     await remove_message(msg, 15)
 
 if __name__ == "__main__":

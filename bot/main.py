@@ -14,6 +14,7 @@ import seaborn
 import pandas
 import time
 import pytz
+import gc
 
 
 mplstyle.use("fast")
@@ -138,11 +139,16 @@ async def plot_handler(message: types.Message):
     tmp = BytesIO()
     image_t1 = time.process_time()
     figure.savefig(tmp)
+    fig.clear()
+    plt.close(fig)
+    df = pandas.DataFrame()
     tmp.seek(0)
     msg = await message.reply_photo(InputFile(tmp),
                               caption=f"Plotting T=`{round((plotting_t2 - plotting_t1) * 1000, 2)}ms`\n"
                                       f"Image T=`{round((time.process_time() - image_t1) * 1000, 2)}ms`",
                               parse_mode="Markdown")
+    
+    gc.collect()
     await bot.delete_message(message.chat.id, message.message_id)
     await remove_message(msg, 15)
 

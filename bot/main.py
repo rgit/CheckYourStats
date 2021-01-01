@@ -1,114 +1,150 @@
-import logging
-from io import BytesIO
-
-import dateparser
-from datetime import datetime
-import time
-
-import pandas
-import pytz
-import seaborn
+from aiogram.utils.exceptions import MessageToDeleteNotFound, MessageCantBeDeleted, NotEnoughRightsToRestrict
+from aiogram.dispatcher.handler import SkipHandler, CancelHandler
 from aiogram import Bot, Dispatcher, executor, types
-
-import dotenv
 from aiogram.types import InputFile
-from pony.orm import db_session, select
-import matplotlib.pyplot as plt
-
 import matplotlib.style as mplstyle
-mplstyle.use('fast')
+from bot.modules.database import *
+import matplotlib.pyplot as plt
+from bot.config import Config
+from io import BytesIO
+import dateparser
+import logging
+import asyncio
+import seaborn
+import pandas
+import time
+import pytz
 
-from bot.db.db import ChatMessage
 
-env = dotenv.dotenv_values()
+mplstyle.use("fast")
 
-
-# Configure logging
+# Configuring logging.
 logging.basicConfig(level=logging.INFO)
 
-# Initialize bot and dispatcher
-bot = Bot(token=env["API_TOKEN"])
+# Initializing bot and dispatcher.
+bot = Bot(token=Config.API_TOKEN)
 dp = Dispatcher(bot)
 
 
-@dp.message_handler(commands=["start", "help"])
-async def start(message: types.Message):
-    await message.reply(f"""
-Этот бот обслуживает чат @{env['CHAT_NAME']} 
-""")
-
-
-def select_with_utc_aware(chat_id):
-    for row in select(p for p in ChatMessage if p.chat_id == str(chat_id))[:]:
+def select_with_utc_aware(chat_id: str):
+    for row in select(p for p in Messages if p.chat_id == str(chat_id))[:]:
         data = row.to_dict()
-        data["datetime"] = data["datetime"].replace(tzinfo=pytz.UTC)
+        data["datetime"] = data["date"].replace(tzinfo=pytz.UTC)
         yield data
 
 
-@dp.message_handler(commands=["plot", "cumplot"])
-async def plot(message: types.Message):
-    if message.chat.id != int(env["CHAT_ID"]):
-        return
-    if message.from_user.id not in [a.user.id for a in (await message.chat.get_administrators())]:
-        await message.reply("Только администраторы могут рисовать графики")
-        return
-    fig = plt.figure()
+async def remove_message(message: types.Message, delay: int):
+    if Config.REMOVE_COMMAND_AFTER_USAGE:
+        await asyncio.sleep(delay)
+        try:
+            await message.delete()
+        except (MessageToDeleteNotFound, MessageCantBeDeleted):
+            pass
 
+
+@dp.message_handler(commands="start")
+@db_session
+async def start_handler(message: types.Message):
+    msg = await message.reply(f"Этот бот обслуживает {len([chat for chat in Chats.select()])} чата(-ов).")
+    await remove_message(msg, 15)
+
+
+@dp.message_handler(commands="stats")
+@db_session
+async def stats_handler(message: types.Message):
+    await bot.delete_message(message.chat.id, message.message_id)
+    response = db.select(
+        f"""SELECT username, user_id, count(*) FROM Messages WHERE chat_id = '{message.chat.id}'
+         GROUP BY user_id ORDER BY count(*) DESC;""")
+    answer, count = f"*Статистика сообщений:*", 0
+    for _message in response:
+        answer += f"\n• [{_message[0]}](tg://user?id={_message[1]}) – {_message[2]}"
+        count += _message[2]
+    answer += f"\n*Общее количество сообщений: {count}.*"
+    msg = await message.answer(answer, parse_mode="Markdown", disable_notification=True)
+    await remove_message(msg, 15)
+
+
+@dp.message_handler(content_types=types.ContentTypes.ANY)
+@db_session
+async def message_handler(message: types.Message):
+    if not [chat for chat in Chats.select() if chat.chat_id == str(message.chat.id)]:
+        Chats(chat_id=str(message.chat.id), date=message.date)
+        commit()
+    if not [user for user in Users.select() if user.user_id == str(message.from_user.id)]:
+        Users(user_id=str(message.from_user.id), chat_id=str(message.chat.id), username=message.from_user.full_name,
+              score=3, date=message.date)
+        commit()
+
+    Messages(user_id=str(message.from_user.id), chat_id=str(message.chat.id), username=message.from_user.full_name,
+             date=message.date)
+    commit()
+
+    if Config.ANTISPAM:
+        user = [user for user in Users.select() if user.user_id == str(message.from_user.id)]
+        if user[0].score <= 0:
+            user[0].set(**{"score": 3})
+            commit()
+            try:
+                await bot.restrict_chat_member(message.chat.id, message.from_user.id, until_date=time.time() + (60 * 5))
+                msg = await message.answer(f"[{message.from_user.full_name}](tg://user?id={message.from_user.id}) был "
+                                           "заблокирован на 5 минут из-за попытки спама.", parse_mode="Markdown")
+                await remove_message(msg, 15)
+            except NotEnoughRightsToRestrict:
+                    await message.answer("Прекрати спамить, долбаеб.")
+            raise CancelHandler
+        if message.text in ["/plot", "/cumplot"]:
+            user[0].set(**{"score": user[0].score - 1})
+            commit()
+            raise SkipHandler
+        else:
+            if user[0].score < 3:
+                user[0].set(**{"score": user[0].score + 1})
+                commit()
+    else:
+        raise SkipHandler
+
+
+@dp.message_handler(commands=["plot", "cumplot"])
+@db_session
+async def plot_handler(message: types.Message):
+    await bot.delete_message(message.chat.id, message.message_id)
+    figure = plt.figure()
     try:
         rule = message.text.split()[1]
     except IndexError:
         rule = "120S"
-
     try:
         from_ = dateparser.parse(message.text.split(maxsplit=2)[2], settings={"TIMEZONE": "UTC"})
-        print(from_)
     except IndexError:
-        with db_session:
-            from_ = ChatMessage.select().first().datetime.replace(tzinfo=pytz.UTC)
+        from_ = Messages.select().first().date.replace(tzinfo=pytz.UTC)
 
-    with db_session:
-        plotting_t1 = time.process_time()
-        df = pandas.DataFrame(select_with_utc_aware(message.chat.id))
+    plotting_t1 = time.process_time()
+    df = pandas.DataFrame(select_with_utc_aware(message.chat.id))
+    df = df.rename(columns={"datetime": "Время", "amount": "Количество сообщений"})
 
-        df = df.rename(columns={"datetime": "Время", "amount": "Количество сообщений"})
+    df = df.set_index("Время")
+    df["Количество сообщений"] = 1
+    df = df.resample(rule).sum()
 
-        df = df.set_index("Время")
-        df["Количество сообщений"] = 1
-        df = df.resample(rule).sum()
+    if message.text.startswith("/cumplot"):
+        df["Количество сообщений"] = df["Количество сообщений"].cumsum()
 
-        if message.text.startswith("/cumplot"):
-            df["Количество сообщений"] = df["Количество сообщений"].cumsum()
+    df = df.loc[from_:]
+    seaborn.lineplot(x="Время", y="Количество сообщений", data=df)
 
-        df = df.loc[from_:]
+    figure.autofmt_xdate()
+    plotting_t2 = time.process_time()
 
-        seaborn.lineplot(x="Время", y="Количество сообщений", data=df)
-
-        fig.autofmt_xdate()
-        plotting_t2 = time.process_time()
-
-        tmp = BytesIO()
-        image_t1 = time.process_time()
-        fig.savefig(tmp)
-        tmp.seek(0)
-        await message.reply_photo(InputFile(tmp), caption=f"""plotting T={round((plotting_t2 - plotting_t1) * 1000, 2)}ms
-image T={round((time.process_time() - image_t1) * 1000, 2)}ms
-Все даты в UTC""",)
-
-
-@dp.message_handler()
-async def message_logger(message: types.Message):
-    # old style:
-    # await bot.send_message(message.chat.id, message.text)
-    if message.chat.id != int(env["CHAT_ID"]):
-        return
-    with db_session:
-        ChatMessage(
-            id=str(message.message_id),
-            chat_id=str(message.chat.id),
-            user_id=str(message.from_user.id),
-            datetime=message.date,
-        )
-
+    tmp = BytesIO()
+    image_t1 = time.process_time()
+    figure.savefig(tmp)
+    tmp.seek(0)
+    msg = await message.reply_photo(InputFile(tmp),
+                              caption=f"Plotting T=`{round((plotting_t2 - plotting_t1) * 1000, 2)}ms`\n"
+                                      f"Image T=`{round((time.process_time() - image_t1) * 1000, 2)}ms`",
+                              parse_mode="Markdown")
+    await remove_message(msg, 15)
 
 if __name__ == "__main__":
     executor.start_polling(dp, skip_updates=True)

@@ -1,4 +1,4 @@
 class Config:
-    API_TOKEN = "1434192927:AAE_FahZhSHmStcmPHgUbcTvgTvEkpUuu-Y"
+    API_TOKEN = ""
     REMOVE_COMMAND_AFTER_USAGE = True
     ANTISPAM = True

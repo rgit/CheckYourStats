@@ -55,14 +55,44 @@ async def start_handler(message: types.Message):
 async def stats_handler(message: types.Message):
     await bot.delete_message(message.chat.id, message.message_id)
     response = db.select(
-        f"""SELECT username, user_id, count(*) FROM Messages WHERE chat_id = '{message.chat.id}'
+        f"""SELECT name, user_id, count(*) FROM Messages WHERE chat_id = '{message.chat.id}'
          GROUP BY user_id ORDER BY count(*) DESC;""")
     answer, count = f"*Статистика сообщений:*", 0
     for _message in response:
-        answer += f"\n• [{_message[0]}](tg://user?id={_message[1]}) – {_message[2]}"
+        answer += f"\n• `{_message[0]}` – {_message[2]}"
         count += _message[2]
     answer += f"\n*Общее количество сообщений: {count}.*"
     msg = await message.answer(answer, parse_mode="Markdown", disable_notification=True)
+    await remove_message(msg, 15)
+
+
+@dp.message_handler(commands="profile")
+@db_session
+async def profile_handler(message: types.Message):
+    await bot.delete_message(message.chat.id, message.message_id)
+    if message.reply_to_message is None:
+        try:
+            if message.text.split()[1]:
+                user_id = [user.user_id for user in Users.select() if f"@{user.username}" ==
+                           str(message.text.split()[1]) and user.chat_id == str(message.chat.id)]
+                if not user_id:
+                    msg = await message.answer("Пользователь не найден.")
+                    await remove_message(msg, 15)
+                    raise CancelHandler
+                else:
+                    user_id = user_id[0]
+        except IndexError:
+            user_id = message.from_user.id
+    else:
+        user_id = message.reply_to_message["from"]["id"]
+    response = db.select(
+        f"""SELECT username, count(*) FROM Messages WHERE (chat_id = '{message.chat.id}'
+         and user_id = '{user_id}')""")[0]
+    user = (await bot.get_chat_member(message.chat.id, user_id))
+    msg = await message.answer(f"*Профиль пользователя* `{user['user']['first_name']}`:\n"
+                               f"Айди – `{user['user']['id']}`\nСтатус – `{user['status']}`\n"
+                               f"Количество сообщений – {response[1]}.",
+                               parse_mode="Markdown")
     await remove_message(msg, 15)
 
 
@@ -73,12 +103,12 @@ async def message_handler(message: types.Message):
         Chats(chat_id=str(message.chat.id), date=message.date)
         commit()
     if not [user for user in Users.select() if user.user_id == str(message.from_user.id)]:
-        Users(user_id=str(message.from_user.id), chat_id=str(message.chat.id), username=message.from_user.full_name,
-              score=3, date=message.date)
+        Users(user_id=str(message.from_user.id), chat_id=str(message.chat.id), name=message.from_user.full_name,
+              username=message.from_user.username if message.from_user.username else "None", score=3, date=message.date)
         commit()
 
-    Messages(user_id=str(message.from_user.id), chat_id=str(message.chat.id), username=message.from_user.full_name,
-             date=message.date)
+    Messages(user_id=str(message.from_user.id), chat_id=str(message.chat.id), name=message.from_user.full_name,
+             username=message.from_user.username if message.from_user.username else "None", date=message.date)
     commit()
 
     if Config.ANTISPAM:
@@ -91,8 +121,9 @@ async def message_handler(message: types.Message):
                 msg = await message.answer(f"[{message.from_user.full_name}](tg://user?id={message.from_user.id}) был "
                                            "заблокирован на 5 минут из-за попытки спама.", parse_mode="Markdown")
                 await remove_message(msg, 15)
-            except (NotEnoughRightsToRestrict, BadRequest):
-                    await message.answer("Прекрати спамить, долбаеб.")
+            except (NotEnoughRightsToRestrict, BadRequest) as e:
+                print(e)
+                await message.answer("Прекрати спамить, долбаеб.")
             raise CancelHandler
         if message.text in ["/plot", "/cumplot"]:
             user[0].set(**{"score": user[0].score - 1})
@@ -139,14 +170,13 @@ async def plot_handler(message: types.Message):
     tmp = BytesIO()
     image_t1 = time.process_time()
     figure.savefig(tmp)
-    fig.clear()
-    plt.close(fig)
+    figure.clear()
+    plt.close(figure)
     df = pandas.DataFrame()
     tmp.seek(0)
-    msg = await message.reply_photo(InputFile(tmp),
-                              caption=f"Plotting T=`{round((plotting_t2 - plotting_t1) * 1000, 2)}ms`\n"
-                                      f"Image T=`{round((time.process_time() - image_t1) * 1000, 2)}ms`",
-                              parse_mode="Markdown")
+    msg = await message.reply_photo(InputFile(tmp), parse_mode="Markdown",
+                                    caption=f"Plotting T=`{round((plotting_t2 - plotting_t1) * 1000, 2)}ms`\n"
+                                            f"Image T=`{round((time.process_time() - image_t1) * 1000, 2)}ms`",)
     
     gc.collect()
     await bot.delete_message(message.chat.id, message.message_id)

@@ -17,6 +17,7 @@ class Users(db.Entity):
     user_id = Required(str)
     chat_id = Required(str)
     username = Required(str)
+    name = Required(str)
     score = Required(int)
     date = Required(datetime, sql_type="TIMESTAMP WITH TIME ZONE")
 
@@ -26,6 +27,7 @@ class Messages(db.Entity):
     user_id = Required(str)
     chat_id = Required(str)
     username = Required(str)
+    name = Required(str)
     date = Required(datetime, sql_type="TIMESTAMP WITH TIME ZONE")
 
 

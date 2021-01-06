@@ -2,20 +2,7 @@ from aiogram.dispatcher.handler import CancelHandler, SkipHandler
 from bot.utils import *
 from bot.misc import dp, types
 from bot.database import *
-# from bot.__main__ import HasPermissions
 from aiogram.types import InputFile
-
-
-# @dp.message_handler(commands="underattack")
-# async def under_attack_handler(message: types.Message):
-    # await
-
-#
-# @dp.message_handler(commands='kek')
-# @dp.message_handler(has_permissions)
-# async def kek(message: types.Message):
-#     await message.answer("Kekw")
-
 
 
 @dp.message_handler(commands="kick")
@@ -46,10 +33,3 @@ async def kick_handler(message: types.Message):
         pass
     msg = await message.answer(f"[{user['user']['first_name']}](tg://user?id={user_id}) был кикнут.")
     await remove_bot_message(msg, 15)
-
-
-# @dp.message_handler(commands="RO")
-# async def read_only_handler
-    
-
-

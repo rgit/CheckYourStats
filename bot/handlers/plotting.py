@@ -14,7 +14,6 @@ from aiogram.types import InputFile
 @dp.message_handler(commands=["plot", "cumplot"])
 @db_session
 async def plot_handler(message: types.Message):
-    await message.answer("plot!")
     figure = plt.figure()
     try:
         rule = message.text.split()[1]

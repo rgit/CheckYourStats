@@ -1,6 +1,6 @@
 from aiogram import executor
 from bot.misc import dp
-from bot.utils.predict import Model
+from bot.utils import Model
 import bot.handlers
 
 model = Model()

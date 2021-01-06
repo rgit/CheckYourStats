@@ -3,7 +3,62 @@ from bot.utils import *
 from bot.misc import dp, types
 from bot.__main__ import model
 from bot.database import *
+import random
 import time
+
+
+@dp.message_handler(content_types=types.ContentTypes.NEW_CHAT_MEMBERS)
+async def new_member_handler(message: types.Message):
+    if message.new_chat_members[0].is_bot and Config.BLOCK_BOTS:
+        if message.new_chat_members[0].id != bot.id:
+            await bot.kick_chat_member(message.chat.id, message.new_chat_members[0].id)
+    elif not message.new_chat_members[0].is_bot:
+        await bot.restrict_chat_member(message.chat.id, message.from_user.id, until_date=time.time() + (60 * 10))
+        keyboard = types.InlineKeyboardMarkup(row_width=2)
+        number_1, act, number_2 = random.randint(1, 50), random.choice(["+", "-"]), random.randint(1, 50)
+        answer = eval(f"{number_1} {act} {number_2}")
+        rows = ((f"{answer}", "True"), (f"{random.randint(1, 50)}", "False"))
+        rows = random.sample(rows, len(rows))
+        row = (types.InlineKeyboardButton(text, callback_data=data) for text, data in rows)
+        keyboard.row(*row)
+        msg = await message.answer(f"[{message.from_user.full_name}](tg://user?id={message.from_user.id}), у вас есть "
+                                   f"1 минута на решение примера: *{number_1} {act} {number_2}*.", reply_markup=keyboard)
+        await dp.storage.set_data(chat=message.chat.id, user=message.from_user.id, data={
+            "user_id": message.from_user.id, "message": msg, "submitted": False})
+        await asyncio.sleep(60)
+        data = await dp.storage.get_data(chat=message.chat.id, user=message.from_user.id, default=None)
+        if data != {} and not data["submitted"]:
+            msg.edit_text(f"[{message.from_user.full_name}](tg://user?id={message.from_user.id}), не прошел проверку "
+                          "вовремя и был кикнут.", reply_markup="")
+            try:
+                await bot.kick_chat_member(message.chat.id, message.from_user.id)
+            except BadRequest:
+                pass
+
+
+@dp.callback_query_handler(text="True")
+@dp.callback_query_handler(text="False")
+async def new_member_callback_handler(query: types.CallbackQuery):
+    data = await dp.storage.get_data(chat=query.message.chat.id, user=query.from_user.id, default=None)
+    if data != {} and data["user_id"] == query.from_user.id:
+        answer = query.data
+        msg = None
+
+        if answer == "True":
+            msg = await data["message"].edit_text(f"[{query.from_user.full_name}](tg://user?id={query.from_user.id}), "
+                                                  "прошел проверку. Добро пожаловать в RuGit чат.", reply_markup="")
+            await dp.storage.set_data(chat=query.message.chat.id, user=query.from_user.id, data={
+                "user_id": query.from_user.id, "message": msg, "submitted": True})
+            await bot.restrict_chat_member(query.message.chat.id, query.from_user.id, until_date=time.time() + 31,
+                                           can_send_messages=True)
+        elif answer == "False":
+            msg = await data["message"].edit_text(f"[{query.from_user.full_name}](tg://user?id={query.from_user.id}), "
+                                                  "не прошел проверку и был кикнут.", reply_markup="")
+            try:
+                await bot.kick_chat_member(query.message.chat.id, query.from_user.id)
+            except BadRequest:
+                pass
+        await remove_bot_message(msg, 30)
 
 
 @dp.message_handler(commands="start")

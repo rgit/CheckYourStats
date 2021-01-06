@@ -32,6 +32,7 @@ async def new_member_handler(message: types.Message):
                           "вовремя и был кикнут.", reply_markup="")
             try:
                 await bot.kick_chat_member(message.chat.id, message.from_user.id)
+                await bot.unban_chat_member(message.chat.id, message.from_user.id)
             except BadRequest:
                 pass
 
@@ -56,6 +57,7 @@ async def new_member_callback_handler(query: types.CallbackQuery):
                                                   "не прошел проверку и был кикнут.", reply_markup="")
             try:
                 await bot.kick_chat_member(query.message.chat.id, query.from_user.id)
+                await bot.unban_chat_member(query.message.chat.id, query.from_user.id)
             except BadRequest:
                 pass
         await remove_bot_message(msg, 30)

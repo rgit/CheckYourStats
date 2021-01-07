@@ -12,12 +12,12 @@ class Training(StatesGroup):
 
 @dp.message_handler(commands="train", state="*")
 async def train_model_start_handler(message: types.Message):
-    msg = await message.answer("*Обучение начато.* Плюс ( + ) – является, минус ( – ) – не является. Используйте /stop "
+    msg = await message.answer("<b>Обучение начато.</b> Плюс ( + ) – является, минус ( - ) – не является. Используйте /stop "
                                "чтобы закончить обучение.")
     await remove_bot_message(msg, 1)
     await bot.delete_message(message.chat.id, message.message_id)
     phrase = model.get_random_row()
-    msg = await message.answer(f"*Фраза* \"`{phrase}`\" *является спамом?*")
+    msg = await message.answer(f"<b>Фраза</b> \"<code>{phrase}</code>\" <b>является спамом?</b>")
 
     await dp.storage.set_data(chat=message.chat.id, user=message.from_user.id, data={
         "user_id": message.from_user.id, "message": msg, "phrase": phrase, "count": 1})
@@ -31,21 +31,21 @@ async def train_model_start_handler(message: types.Message, state: FSMContext):
     data = await dp.storage.get_data(chat=message.chat.id, user=message.from_user.id, default=None)
     if message.from_user.id == data["user_id"]:
         if message.text == "+":
-            msg = await data["message"].edit_text(f"*Фраза* \"`{data['phrase']}`\" *помечена как спам.*",
-                                                  parse_mode="Markdown")
+            msg = await data["message"].edit_text(f"<b>Фраза</b> \"<code>{data['phrase']}</code>\" <b>помечена как спам.</b>",
+                                                  parse_mode="HTML")
             model.set_spam_mark(data["phrase"], True)
             await remove_bot_message(msg, 1)
             await bot.delete_message(message.chat.id, message.message_id)
         elif message.text == "-":
-            msg = await data["message"].edit_text(f"*Фраза* \"`{data['phrase']}`\" *помечена как НЕ спам.*",
-                                                  parse_mode="Markdown")
+            msg = await data["message"].edit_text(f"<b>Фраза</b> \"<code>{data['phrase']}</code>\" <b>помечена как НЕ спам.</b>",
+                                                  parse_mode="HTML")
             model.set_spam_mark(data["phrase"], False)
             await remove_bot_message(msg, 1)
             await bot.delete_message(message.chat.id, message.message_id)
         elif message.text == "/stop":
             await remove_bot_message(data["message"], 0)
-            msg = await message.answer(f"*Обучение завершено. Проверено* `{data['count']}` *фраз(-ы). Точность модели:*"
-                                       f" `{model.get_info()[2]}`*.*")
+            msg = await message.answer(f"<b>Обучение завершено. Проверено</b> <code>{data['count']}</code> <b>фраз(-ы). Точность модели:</b>"
+                                       f" <code>{model.get_info()[2]}</code><b>.</b>")
             await bot.delete_message(message.chat.id, message.message_id)
             await remove_bot_message(msg, 10)
             await state.finish()
@@ -53,7 +53,7 @@ async def train_model_start_handler(message: types.Message, state: FSMContext):
 
         if message.text in ["+", "-"]:
             phrase = model.get_random_row()
-            msg = await message.answer(f"*Фраза* \"`{phrase}`\" *является спамом?*")
+            msg = await message.answer(f"<b>Фраза</b> \"<code>{phrase}</code>\" <b>является спамом?</b>")
 
             await dp.storage.set_data(chat=message.chat.id, user=message.from_user.id, data={
                 "user_id": message.from_user.id, "message": msg, "phrase": phrase, "count": data["count"] + 1})
@@ -88,3 +88,4 @@ async def delete_spam_handler(message: types.Message):
         else:
             msg = await message.answer("Оправьте команду в ответ на сообщение.")
         await remove_bot_message(msg, 10)
+

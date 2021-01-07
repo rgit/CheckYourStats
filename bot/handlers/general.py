@@ -21,14 +21,14 @@ async def new_member_handler(message: types.Message):
         rows = random.sample(rows, len(rows))
         row = (types.InlineKeyboardButton(text, callback_data=data) for text, data in rows)
         keyboard.row(*row)
-        msg = await message.answer(f"[{message.from_user.full_name}](tg://user?id={message.from_user.id}), у вас есть "
-                                   f"1 минута на решение примера: *{number_1} {act} {number_2}*.", reply_markup=keyboard)
+        msg = await message.answer(f"<a href='tg://user?id={message.from_user.id}'>{message.from_user.full_name}</a>, у вас есть "
+                                   f"1 минута на решение примера: <b>{number_1} {act} {number_2}</b>.", reply_markup=keyboard)
         await dp.storage.set_data(chat=message.chat.id, user=message.from_user.id, data={
             "user_id": message.from_user.id, "message": msg, "submitted": False})
         await asyncio.sleep(60)
         data = await dp.storage.get_data(chat=message.chat.id, user=message.from_user.id, default=None)
         if data != {} and not data["submitted"]:
-            msg.edit_text(f"[{message.from_user.full_name}](tg://user?id={message.from_user.id}), не прошел проверку "
+            msg.edit_text(f"<a href='tg://user?id={message.from_user.id}'>{message.from_user.full_name}</a>, не прошел проверку "
                           "вовремя и был кикнут.", reply_markup="")
             try:
                 await bot.kick_chat_member(message.chat.id, message.from_user.id)
@@ -46,14 +46,14 @@ async def new_member_callback_handler(query: types.CallbackQuery):
         msg = None
 
         if answer == "True":
-            msg = await data["message"].edit_text(f"[{query.from_user.full_name}](tg://user?id={query.from_user.id}), "
-                                                  "прошел проверку. Добро пожаловать в RuGit чат.", reply_markup="")
+            msg = await data["message"].edit_text(f"<a href='tg://user?id={query.from_user.id}'>{query.from_user.full_name}</a>, "
+                                                  "прошел проверку. Добро пожаловать в чат.", reply_markup="")
             await dp.storage.set_data(chat=query.message.chat.id, user=query.from_user.id, data={
                 "user_id": query.from_user.id, "message": msg, "submitted": True})
             await bot.restrict_chat_member(query.message.chat.id, query.from_user.id, until_date=time.time() + 31,
                                            can_send_messages=True)
         elif answer == "False":
-            msg = await data["message"].edit_text(f"[{query.from_user.full_name}](tg://user?id={query.from_user.id}), "
+            msg = await data["message"].edit_text(f"<a href='tg://user?id={query.from_user.id}'>{query.from_user.full_name}</a>, "
                                                   "не прошел проверку и был кикнут.", reply_markup="")
             try:
                 await bot.kick_chat_member(query.message.chat.id, query.from_user.id)
@@ -78,13 +78,13 @@ async def stats_handler(message: types.Message):
     response = db.select(
         f"""SELECT name, user_id, count(*) FROM Messages WHERE chat_id = '{message.chat.id}'
          GROUP BY name, user_id ORDER BY count(*) DESC;""")
-    answer, count = f"*Статистика сообщений:*", 0
+    answer, count = f"<b>Статистика сообщений:</b>", 0
     for _message in response[:10]:
-        answer += f"\n• `{_message[0]}` – {_message[2]}"
+        answer += f"\n• <code>{_message[0]}</code> – {_message[2]}"
         count += _message[2]
     dataset = model.get_info()
-    answer += f"\n*Общее количество сообщений:* `{count}`\n*Количество записей в датасете:* `{dataset[0]}` / " \
-              f"`{dataset[1]}` *спама*\n*Точность модели:* `{dataset[2]}`"
+    answer += f"\n<b>Общее количество сообщений:</b> <code>{count}</code>\n<b>Количество записей в датасете:</b> <code>{dataset[0]}</code> / " \
+              f"<code>{dataset[1]}</code> <b>спама</b>\n<b>Точность модели:</b> <code>{dataset[2]}</code>"
     msg = await message.answer(answer, disable_notification=True)
     await remove_bot_message(msg, 15)
 
@@ -113,10 +113,10 @@ async def profile_handler(message: types.Message):
          and user_id = '{user_id}') GROUP BY username""")[0]
     user = (await bot.get_chat_member(message.chat.id, user_id))
     dataset = model.get_info(user_id)
-    msg = await message.answer(f"*Профиль пользователя* `{user['user']['first_name']}`:\n"
-                               f"Айди – `{user['user']['id']}`\nСтатус – `{user['status']}`\n"
-                               f"Количество сообщений – `{response[1]}`\nКоличество записей в датасете – `{dataset[0]}`"
-                               f"\nКоличество спама – `{dataset[1]}`")
+    msg = await message.answer(f"<b>Профиль пользователя</b> <code>{user['user']['first_name']}</code>:\n"
+                               f"Айди – <code>{user['user']['id']}</code>\nСтатус – <code>{user['status']}</code>\n"
+                               f"Количество сообщений – <code>{response[1]}</code>\nКоличество записей в датасете – <code>{dataset[0]}</code>"
+                               f"\nКоличество спама – <code>{dataset[1]}</code>")
     await remove_bot_message(msg, 15)
 
 
@@ -152,7 +152,7 @@ async def message_handler(message: types.Message):
                         await bot.restrict_chat_member(message.chat.id, message.from_user.id,
                                                        until_date=time.time()+ (60 * 5))
                         msg = await message.answer(
-                            f"[{message.from_user.full_name}](tg://user?id={message.from_user.id}) был "
+                            f"<a href='tg://user?id={message.from_user.id}'>{message.from_user.full_name}</a> был "
                             "заблокирован на 5 минут из-за попытки спама.")
                         await remove_bot_message(msg, 15)
                     except (NotEnoughRightsToRestrict, BadRequest):
@@ -164,3 +164,4 @@ async def message_handler(message: types.Message):
                     commit()
         else:
             raise SkipHandler
+

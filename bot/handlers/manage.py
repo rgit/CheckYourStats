@@ -31,5 +31,6 @@ async def kick_handler(message: types.Message):
         await bot.unban_chat_member(message.chat.id, user_id)
     except BadRequest:
         pass
-    msg = await message.answer(f"[{user['user']['first_name']}](tg://user?id={user_id}) был кикнут.")
+    msg = await message.answer(f"<a href='tg://user?id={user_id}'>{user.user.full_name}</a> был кикнут.")
     await remove_bot_message(msg, 15)
+

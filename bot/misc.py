@@ -4,7 +4,8 @@ from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from bot.config import Config
 
 
-bot = Bot(Config.API_TOKEN, parse_mode=types.ParseMode.MARKDOWN_V2)
+bot = Bot(Config.API_TOKEN, parse_mode=types.ParseMode.HTML)
 dp = Dispatcher(bot, storage=MemoryStorage())
 
 logging.basicConfig(level=logging.INFO)
+

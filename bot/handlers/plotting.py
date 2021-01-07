@@ -46,10 +46,11 @@ async def plot_handler(message: types.Message):
     figure.savefig(tmp)
     figure.clear()
     plt.close(figure)
+    df = pandas.DataFrame()
     tmp.seek(0)
     msg = await message.reply_photo(InputFile(tmp),
-                                    caption=f"Plotting T=`{round((plotting_t2 - plotting_t1) * 1000, 2)}ms`\n"
-                                    f"Image T=`{round((time.process_time() - image_t1) * 1000, 2)}ms`", )
+                                    caption=f"Plotting T=<code>{round((plotting_t2 - plotting_t1) * 1000, 2)}ms</code>\n"
+                                    f"Image T=<code>{round((time.process_time() - image_t1) * 1000, 2)}ms</code>", )
 
     gc.collect()
     await remove_user_message(message)

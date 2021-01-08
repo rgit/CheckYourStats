@@ -59,33 +59,31 @@ async def train_model_start_handler(message: types.Message, state: FSMContext):
                 "user_id": message.from_user.id, "message": msg, "phrase": phrase, "count": data["count"] + 1})
 
 
-@dp.message_handler(commands="addspam")
+@dp.message_handler(commands="addspam", has_owner_perms=True)
 async def add_spam_handler(message: types.Message):
-    if await is_admin(message):
-        await remove_user_message(message)
-        if message.reply_to_message is not None:
-            if message.reply_to_message["text"] is not None:
-                model.set_spam_mark(message.reply_to_message["text"], True)
-                msg = await message.reply_to_message.reply("Данное сообщение помечено как спам.")
-            else:
-                msg = await message.answer("Сообщение должно содержать только текст.")
+    await remove_user_message(message)
+    if message.reply_to_message is not None:
+        if message.reply_to_message["text"] is not None:
+            model.set_spam_mark(message.reply_to_message["text"], True)
+            msg = await message.reply_to_message.reply("Данное сообщение помечено как спам.")
         else:
-            msg = await message.answer("Оправьте команду в ответ на сообщение.")
-        await remove_bot_message(msg, 10)
+            msg = await message.answer("Сообщение должно содержать только текст.")
+    else:
+        msg = await message.answer("Оправьте команду в ответ на сообщение.")
+    await remove_bot_message(msg, 10)
 
 
-@dp.message_handler(commands="delspam")
+@dp.message_handler(commands="delspam", has_owner_perms=True)
 async def delete_spam_handler(message: types.Message):
-    if await is_admin(message):
-        await remove_user_message(message)
-        if message.reply_to_message is not None:
-            if message.reply_to_message["text"] is not None:
-                _message = message.reply_to_message
-                model.set_spam_mark(_message["text"], False)
-                msg = await _message.reply("Данное сообщение помечено как НЕ спам.")
-            else:
-                msg = await message.answer("Сообщение должно содержать только текст.")
+    await remove_user_message(message)
+    if message.reply_to_message is not None:
+        if message.reply_to_message["text"] is not None:
+            _message = message.reply_to_message
+            model.set_spam_mark(_message["text"], False)
+            msg = await _message.reply("Данное сообщение помечено как НЕ спам.")
         else:
-            msg = await message.answer("Оправьте команду в ответ на сообщение.")
-        await remove_bot_message(msg, 10)
+            msg = await message.answer("Сообщение должно содержать только текст.")
+    else:
+        msg = await message.answer("Оправьте команду в ответ на сообщение.")
+    await remove_bot_message(msg, 10)
 

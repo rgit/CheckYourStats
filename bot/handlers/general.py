@@ -120,7 +120,7 @@ async def profile_handler(message: types.Message):
     await remove_bot_message(msg, 15)
 
 
-@dp.message_handler(content_types=types.ContentTypes.ANY)
+@dp.message_handler(content_types=types.ContentTypes.ANY, has_owner_perms=False)
 @db_session
 async def message_handler(message: types.Message):
     if not [chat for chat in Chats.select() if chat.chat_id == str(message.chat.id)]:
@@ -136,7 +136,7 @@ async def message_handler(message: types.Message):
     if message.text is not None:
         prediction = model.predict(message.text)
         model.add_to_dataset(message.from_user.id, message.chat.id, message.text, prediction)
-        if Config.ANTISPAM and await is_admin(message) is False:
+        if Config.ANTISPAM:
             user = [user for user in Users.select() if user.user_id == str(message.from_user.id)]
             if prediction:
                 user[0].set(**{"score": user[0].score - 1})

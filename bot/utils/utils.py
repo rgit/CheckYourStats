@@ -30,7 +30,3 @@ async def remove_user_message(message: types.Message):
         except (MessageToDeleteNotFound, MessageCantBeDeleted, BadRequest):
             pass
 
-
-async def is_admin(message: types.Message):
-    user = await bot.get_chat_member(message.chat.id, message.from_user.id)
-    return user["status"] == "administrator" or user["status"] == "creator"
